@@ -10,30 +10,24 @@ def setup_parameters():
     #----------------------------------
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-T', type=float, help="mission time", default=24)
-    parser.add_argument('-addT', type=eval, help="add tier", choices=[True, False], default=False)
     parser.add_argument('-plus1', type=eval, help="plus one", choices=[True, False], default=False)
-    parser.add_argument('-useP', type=eval, help="use priority", choices=[True, False], default=False)
     #------------------------------------------------------------------------------
     parser.add_argument('-M', type=int, help="#servers/machines", default=2)
     parser.add_argument('-D', type=int, help="#disks per server", default=20)
     parser.add_argument('-S', type=int, help="#spares per server", default=4)
     #------------------------------------------------------------------------------
-    parser.add_argument('-kt', type=int, help="#top data chunks",default=2)
-    parser.add_argument('-mt', type=int, help="#top parity chunks",default=1)
-    parser.add_argument('-kb', type=int, help="#bottom data chunks",default=2)
-    parser.add_argument('-mb', type=int, help="#bottom parity chunks",default=2)
+    parser.add_argument('-k', type=int, help="#data chunks",default=2)
+    parser.add_argument('-m', type=int, help="#parity chunks",default=2)
+    parser.add_argument('-fb', type=int, help="overlap fraction",default=3)
     #------------------------------------------------------------------------------
-    parser.add_argument('-ft', type=int, help="top fraction",default=1)
-    parser.add_argument('-fb', type=int, help="bottom fraction",default=3)
-    #------------------------------------------------------------------------------
-    parser.add_argument('-typet', type=int, help="top placement type",default=1)
-    parser.add_argument('-typeb', type=int, help="bottom placement type",default=1)
+    parser.add_argument('-dtype', type=int, help="data protection type",default=1)
+    parser.add_argument('-ftype', type=int, help="failure distribution type",default=1)
+    parser.add_argument('-mtbf', type=float, help="mean time between failure to mttr ratio",default=1.0)
     #------------------------------------------------------------------------------
     parser.add_argument('-percent', type=float, help="failure percent",default=0.5)
     parser.add_argument('-rebuildIO', type=int, help="rebuild IO (MB/s)",default=50)
     parser.add_argument('-slaTime', type=int, help="SLA time (h)",default=0)
     parser.add_argument('-copybackIO', type=int, help="copyback IO (MB/s)",default=200)
-    parser.add_argument('-networkBW', type=float, help="network bandwidth (Gbits/s)",default=1)
     #------------------------------------------------------------------------------
     parser.add_argument('-diskCap', type=float, help="disk capacity (TB)",default=16)
     parser.add_argument('-useRatio', type=float, help="disk used ratio",default=1.0)
@@ -44,7 +38,9 @@ def setup_parameters():
 
 
 def start(tasks_per_worker):
-    (iterations_per_worker, traces_per_worker, mission_time, add_tier, plus_one, use_priority, num_servers, num_disks_per_server, num_spares_per_server, kt, mt, kb, mb, ft, fb, failure_percent, top_type, bottom_type, rebuildIO, slaTime, copybackIO, networkBW, diskCap, useRatio) = tasks_per_worker
+    (iterations_per_worker, traces_per_worker, mission_time, plus_one,
+            num_servers, num_disks_per_server, num_spares_per_server, k, m, fb,
+            dtype, ftype, mtbf, failure_percent, rebuildIO, slaTime, copybackIO, diskCap, useRatio) = tasks_per_worker
     #------------------------------------
     # Initialize the simulation and run 
     #------------------------------------
