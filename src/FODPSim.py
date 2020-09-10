@@ -24,10 +24,10 @@ def setup_parameters():
     parser.add_argument('-ftype', type=int, help="failure distribution type",default=1)
     parser.add_argument('-mtbf', type=float, help="mean time between failure to mttr ratio",default=1.0)
     #------------------------------------------------------------------------------
-    parser.add_argument('-percent', type=float, help="failure percent",default=0.5)
+    parser.add_argument('-percent', type=float, help="failure percent",default=0.01)
     parser.add_argument('-rebuildIO', type=int, help="rebuild IO (MB/s)",default=50)
     parser.add_argument('-slaTime', type=int, help="SLA time (h)",default=0)
-    parser.add_argument('-copybackIO', type=int, help="copyback IO (MB/s)",default=200)
+    parser.add_argument('-copybackIO', type=int, help="copyback IO (MB/s)",default=400)
     #------------------------------------------------------------------------------
     parser.add_argument('-diskCap', type=float, help="disk capacity (TB)",default=16)
     parser.add_argument('-useRatio', type=float, help="disk used ratio",default=1.0)
@@ -38,13 +38,11 @@ def setup_parameters():
 
 
 def start(tasks_per_worker):
-    (iterations_per_worker, traces_per_worker, mission_time, plus_one,
-            num_servers, num_disks_per_server, num_spares_per_server, k, m, fb,
-            dtype, ftype, mtbf, failure_percent, rebuildIO, slaTime, copybackIO, diskCap, useRatio) = tasks_per_worker
+    (iterations_per_worker, traces_per_worker, mission_time, plus_one, num_servers, num_disks_per_server, num_spares_per_server, k, m, fb, dp_type, failure_type, mtbf, failure_percent, rebuildIO, slaTime, copybackIO, diskCap, useRatio) = tasks_per_worker
     #------------------------------------
     # Initialize the simulation and run 
     #------------------------------------
-    sim = Simulate(mission_time, add_tier, plus_one, use_priority, num_servers, num_disks_per_server, num_spares_per_server, kt, mt, kb, mb, ft, fb, failure_percent, top_type, bottom_type, rebuildIO, slaTime, copybackIO, networkBW, diskCap, useRatio)
+    sim = Simulate(mission_time, plus_one, num_servers, num_disks_per_server, num_spares_per_server, k, m, fb, dp_type, failure_type, mtbf, failure_percent, rebuildIO, slaTime, copybackIO, diskCap, useRatio)
     return sim.run_simulation(iterations_per_worker, traces_per_worker)
 
 
@@ -53,12 +51,12 @@ if __name__ == "__main__":
     # >>> get the configurations >>>
     #-------------------------------
     args = setup_parameters()
-    params = (args.T, args.addT, args.plus1, args.useP, args.M, args.D, args.S, args.kt, args.mt, args.kb, args.mb, args.ft, args.fb, args.percent, args.typet, args.typeb, args.rebuildIO, args.slaTime, args.copybackIO, args.networkBW, args.diskCap, args.useRatio)
+    params = (args.T, args.plus1, args.M, args.D, args.S, args.k, args.m, args.fb, args.dtype, args.ftype, args.mtbf, args.percent, args.rebuildIO, args.slaTime, args.copybackIO, args.diskCap, args.useRatio)
     #---------------------------------------
     # calculate iterations per thread worker
     #---------------------------------------
     modelfile = open("model.txt",'a')
-    total_iterations = 1
+    total_iterations = 1000
     num_threads = 1
     if total_iterations % num_threads != 0:
         print "totoal iterations should be divided by the number of threads"
@@ -86,26 +84,20 @@ if __name__ == "__main__":
     # collect the final results from workers
     #----------------------------------------
     prob_sum = 0
-    local_sum = 0
-    global_sum = 0
     loss_sum = 0
     for each in results:
         #-------------------------------
         print ">>>> each result", each
         for value in each:
-            local_sum += value[1]
-            global_sum += value[2]
-            if len(value[3].keys())!= 0:
+            if len(value[0].keys())!= 0:
                 prob_sum += 1
-            loss_sum += value[4]
+            loss_sum += value[1]
         #-------------------------------
     formatted_prob = float("{:.6f}".format(float(prob_sum)*100/total_iterations))
-    formatted_local = float("{:.6f}".format(float(local_sum)*100/total_iterations))
-    formatted_global = float("{:.6f}".format(float(global_sum)*100/total_iterations))
     formatted_loss = 0
     if prob_sum != 0:
     	formatted_loss = float("{:.6f}".format(float(loss_sum)*100/prob_sum))
     print ">>>>>>>>>>>>>>>> * final prob * ", formatted_prob, formatted_loss
-    modelfile.write("- %f, %d, %d, %d, %f, %f\n" % (args.percent, args.fb, args.ft, args.typeb, formatted_prob, formatted_loss))
+    modelfile.write("- %f, %d, %d, %f, %f\n" % (args.percent, args.fb, args.dtype, formatted_prob, formatted_loss))
     modelfile.close()
 

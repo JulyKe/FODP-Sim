@@ -12,7 +12,7 @@ class Server:
     EVENT_FAIL = "<server failure>"
     EVENT_REPAIR = "<server repair>"
 
-    def __init__(self, serverId, num_spares, networkBW):
+    def __init__(self, serverId, num_spares):
         #-----------------------------------
         # initialize the serverId and state
         #-----------------------------------
@@ -23,10 +23,6 @@ class Server:
         #-------------------------------------------
         self.num_spares = num_spares
         self.avail_spares = num_spares
-        #-------------------------------------
-        # initialize the bw and available bw
-        #-------------------------------------
-        self.availBW = networkBW 
         #----------------------------------------------
         # server shares bandwidth for multiple repairs
         #----------------------------------------------

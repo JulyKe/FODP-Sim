@@ -25,6 +25,6 @@ class Copyback:
     def calculate_copyback_time(self, diskId):
         repair_data = self.disks[diskId].repair_data
         copyback_time = repair_data / self.copybackIO
-        print "    >>> estimate copyback disk >>>[", diskId, "]", " copyback time->",copyback_time/(2*3600)
-        return float(copyback_time)/(2*3600)
+        print "    >>> estimate copyback disk >>>[", diskId, "]", " copyback time->",copyback_time/3600
+        return float(copyback_time)/3600
         # dual acurator

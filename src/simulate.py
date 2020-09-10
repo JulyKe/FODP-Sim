@@ -1,11 +1,9 @@
 from placement import Placement
 from campaign import Campaign
 from copyback import Copyback
-from dense import Dense
 from rebuild import Rebuild
-from network import Network
-from poisson import Poisson
 from batch import Batch
+from poisson import Poisson
 from exponential import Exponential
 from server import Server
 from state import State
@@ -15,20 +13,26 @@ from heapq import *
 # Simulations
 #------------------------------------
 class Simulate:
-    def __init__(self, mission_time, add_tier, plus_one, use_priority, num_servers, num_disks_per_server, num_spares_per_server, kt, mt, kb, mb, ft, fb, failure_percent, top_type, bottom_type, rebuildIO, slaTime, copybackIO, networkBW, diskCap, useRatio):
+    def __init__(self,mission_time, plus_one, num_servers, num_disks_per_server, num_spares_per_server, k, m, fb, dp_type, failure_type, mtbf, failure_percent, rebuildIO, slaTime, copybackIO, diskCap, useRatio):
+        #---------------------------
+	# compressed time window
         #---------------------------
         self.mission_time = mission_time
-        self.add_tier = add_tier
         #---------------------------
         # system and placement
         #---------------------------
-        self.sys = Campaign(add_tier, plus_one, num_servers, num_disks_per_server, num_spares_per_server, kt, mt, kb, mb, top_type, bottom_type, ft, fb, diskCap, useRatio)
+        self.sys = Campaign(plus_one, num_servers, num_disks_per_server, num_spares_per_server, k, m, fb, dp_type, diskCap, useRatio)
         self.place = Placement(self.sys)
+        #--------------------------------------
+	# fast rebuild + copyback phases
         #--------------------------------------
         self.rebuild = Rebuild(self.sys, rebuildIO)
         self.copyback = Copyback(copybackIO, slaTime)
-        self.network = Network(self.sys, networkBW)
         #--------------------------------------
+	# failures distribution and mtbf
+        #--------------------------------------
+	self.mtbf = mtbf
+	self.failure_type = failure_type
         self.failure_percent = failure_percent
 
 
@@ -36,32 +40,33 @@ class Simulate:
         #----------------------------------------------
         # failures arrive by using poisson distribution
         #----------------------------------------------
-        trace = Poisson(self.sys.num_disks, self.failure_percent, self.mission_time)
-        #trace = Batch(self.sys.num_disks, self.failure_percent, MTBF=32, cascade_factor=10.0)
-        #trace = Exponential(self.sys.num_disks, self.failure_percent, MTBF=32, cascade_factor=100.0)
-        #trace =Dense(self.sys.num_disks, self.failure_percent, MTBF=self.mission_time, cascade_factor=100.0)
+	if self.failure_type == 0:
+            trace = Poisson(self.sys.num_disks, self.failure_percent, self.mtbf)
+	if self.failure_type == 1:
+            trace = Exponential(self.sys.num_disks, self.failure_percent, self.mtbf)
+	if self.failure_type == 2:
+           trace = Batch(self.sys.num_disks, self.failure_percent, self.mtbf, cascade_factor=10.0)
         self.trace_entry = trace.generate_failures()
         #------------------------------------------
         # put the disk failures in the event queue
         #------------------------------------------
         self.events_queue = []
-        #------------------------
         for disk_fail_time, diskId in self.trace_entry:
             heappush(self.events_queue, (disk_fail_time, Disk.EVENT_FAIL, diskId))
             print ">>>>> reset disk", diskId, Disk.EVENT_FAIL, "@",disk_fail_time
             self.mission_time = disk_fail_time
-        print " - system mission time -", self.mission_time
+        print " - system mission time - ", self.mission_time
         #------------------------------
         # initialize the system state
         #------------------------------
-        self.state = State(self.sys, self.rebuild, self.copyback, self.network, self.events_queue)
+        self.state = State(self.sys, self.rebuild, self.copyback, self.events_queue)
 
 
 
     def get_next_wait_events(self):
         events = []
         #---------------------------------------------------------------------------------------
-        if self.sys.bottom_type == 0 or self.sys.bottom_type == 1 or self.sys.bottom_type == 2:
+        if self.sys.dp_type == 0 or self.sys.dp_type == 1 or self.sys.dp_type == 2:
         #---------------------------------------------------------------------------------------
             for serverId in self.sys.servers:
                 if self.state.servers[serverId].wait_queue:
@@ -80,28 +85,6 @@ class Simulate:
                             deviceset.append(simultaneous_event[2])
                             avail_spares -= 1
                         print ">>>>> pop server wait disk", deviceset, next_event_type, " - time - ", next_event_time
-                        events.append((next_event_time, next_event_type, deviceset))
-            return events
-        #------------------------------------------------------------
-        if self.sys.bottom_type == 3 or self.sys.bottom_type == 4:
-        #------------------------------------------------------------
-            for groupId in self.sys.groups:
-                if self.state.groups[groupId].wait_queue:
-                    avail_spares = self.state.groups[groupId].avail_spares
-                    while avail_spares and self.state.groups[groupId].wait_queue:
-                        print "\n@wait_queue in group [", groupId , "] avail spares:",self.state.groups[groupId].avail_spares
-                        deviceset = []
-                        next_event = heappop(self.state.groups[groupId].wait_queue)
-                        #------------------------------------------
-                        next_event_time = next_event[0]
-                        next_event_type = next_event[1]
-                        deviceset.append(next_event[2])
-                        avail_spares -= 1
-                        while self.state.groups[groupId].wait_queue and self.state.groups[groupId].wait_queue[0][0] == next_event_time and self.state.groups[groupId].wait_queue[0][1] == next_event_type and avail_spares > 0:
-                            simultaneous_event = heappop(self.state.groups[groupId].wait_queue)
-                            deviceset.append(simultaneous_event[2])
-                            avail_spares -= 1
-                        print ">>>>> pop group wait disk", deviceset, next_event_type, " - time - ", next_event_time
                         events.append((next_event_time, next_event_type, deviceset))
             return events
 
@@ -147,7 +130,6 @@ class Simulate:
     def run_iteration(self, num_iter):
         self.reset()
         curr_time = 0
-        prob = 0
         loss = 0
         loopflag = True
         eventDL = 0
@@ -179,7 +161,7 @@ class Simulate:
                 #-------------------------------------------------------
                 # degraded rebuild or copyback event, continue
                 #-------------------------------------------------------
-                if event_type == Disk.EVENT_DEGRADEDREBUILD or event_type == Disk.EVENT_COPYBACK or event_type == Server.EVENT_REPAIR:
+                if event_type == Disk.EVENT_DEGRADEDREBUILD or event_type == Disk.EVENT_COPYBACK:
                     continue
                 #------------------------------------------
                 # check the PDL according to failure events
@@ -188,8 +170,5 @@ class Simulate:
                     eventDL = eventDL + 1
                     if self.place.check_global_dataloss(self.state, deviceset):
                         print "############### data loss ##############", eventDL, "deviceset", deviceset, curr_time, ">>> unrecoverables - ", self.state.MTTDL, "\n"
-        if self.add_tier:
-            return (prob, self.sys.local_repair/(self.sys.local_repair+self.sys.global_repair), self.sys.global_repair/(self.sys.local_repair+self.sys.global_repair, self.state.MTTDL))
-        else:
-            return (prob, 0, 0, self.state.MTTDL, loss)
+        return (self.state.MTTDL, loss)
 

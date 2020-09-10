@@ -15,18 +15,19 @@ class Rebuild:
         print "    >>> estimate RAID local wo/P >>>[", diskId, "]", " repair time->",self.disks[diskId].repair_time
 
 
-    def estimate_decluster_time(self, diskId, local_percent, normals_per_server):
+    def estimate_decluster_time(self, diskId, normals_per_server):
         repair_IO = self.rebuildIO * normals_per_server
-        repair_data = self.disks[diskId].repair_data * local_percent * (self.sys.kb + 1)
+        repair_data = self.disks[diskId].repair_data * (self.sys.k + 1)
         repair_time = repair_data / repair_IO
         self.disks[diskId].repair_time = repair_time/3600
         print "    >>> estimate decluster wo/P >>>[", diskId, "]", " repair time->",self.disks[diskId].repair_time
 
 
-    def estimate_FODP_time(self, diskId, local_sets_per_disk):
-        repair_data = self.disks[diskId].repair_data * (local_sets_per_disk / float(self.sys.fb))
-        repair_IO = self.rebuildIO * (self.sys.kb + self.sys.mb - 1) * local_sets_per_disk
-        self.disks[diskId].repair_time = repair_data * (self.sys.kb + 1) / (repair_IO * 3600)
+    def estimate_FODP_time(self, diskId):
+        repair_IO = self.rebuildIO * (self.sys.k + self.sys.m - 1) * self.sys.fb
+	repair_data = self.disks[diskId].repair_data * (self.sys.k + 1)
+        repair_time = repair_data / repair_IO
+        self.disks[diskId].repair_time = repair_time/3600
         print "    >>> estimate local FODP wo/P >>>[", diskId, "]", " repair time->",self.disks[diskId].repair_time
 
 

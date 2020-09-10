@@ -3,10 +3,10 @@ import random
 # http://pageperso.lif.univ-mrs.fr/~francois.denis/IAAM1/numpy-html-1.14.0/reference/generated/numpy.random.exponential.html
 # https://dfrieds.com/math/exponential-distribution.html
 class Batch:
-    def __init__(self, S, percent, MTBF, cascade_factor):
+    def __init__(self, S, percent, mtbf, cascade_factor):
         self.S = S
+        self.mtbf = mtbf
         self.percent = percent
-        self.MTBF = MTBF
         self.cascade_factor = cascade_factor
 
     def generate_failures(self):
@@ -19,7 +19,7 @@ class Batch:
         failures1 =  failures[:int(initial_ratio*total_failed_devices)] # 0.1 intial failures
         print failures1
         MTTR = 6.6576
-        MTBF1 = 0.4*MTTR
+        MTBF1 = self.mtbf * MTTR
         MTBF2 = MTBF1/self.cascade_factor
         rand = np.random.RandomState(0)  # universal random seed
         #-----------------------------------------------------------------
